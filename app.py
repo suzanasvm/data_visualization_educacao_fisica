@@ -7,7 +7,7 @@ st.set_page_config(layout="wide")
 st.title("Painel de Preferências Esportivas dos Estudantes")
 
 # carregar dados
-df = pd.read_csv("dados_consolidados.csv")
+df = pd.read_csv("data/dados_consolidados.csv")
 
 st.sidebar.header("Filtros")
 

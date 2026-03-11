@@ -4,136 +4,163 @@ import plotly.express as px
 
 st.set_page_config(layout="wide")
 
-st.title("Painel de Preferências Esportivas dos Estudantes")
+st.title("Análise de Preferências Esportivas - Educação Física")
 
-# carregar dados
+menu = st.sidebar.selectbox(
+    "Selecione o Menu:",
+    [
+        "Esportes Preferidos",
+        "Esportes Rejeitados",
+        "Melhor Experiência",
+        "Percepção da Disciplina"
+    ]
+)
+
+# ============================
+# CORES DOS CURSOS
+# ============================
+
+cores = {
+    "adm": "#1f77b4",
+    "info": "#ff7f0e",
+    "agro": "#2ca02c",
+    "zoo": "#d62728",
+    "alt": "#9467bd"
+}
+
+# ============================
+# CARREGAR DADOS AUTOMATICAMENTE
+# ============================
+
 df = pd.read_csv("data/dados_consolidados.csv")
 
-st.sidebar.header("Filtros")
+# ============================
+# FILTRO POR ANO
+# ============================
 
-anos = st.sidebar.multiselect(
+anos_selecionados = st.sidebar.multiselect(
     "Selecione o ano",
-    options=sorted(df["ano"].unique()),
+    sorted(df["ano"].unique()),
     default=sorted(df["ano"].unique())
 )
 
-cursos = st.sidebar.multiselect(
-    "Selecione o curso",
-    options=sorted(df["curso"].unique()),
-    default=sorted(df["curso"].unique())
+df = df[df["ano"].isin(anos_selecionados)]
+
+# criar turma
+df["turma"] = df["ano"].astype(str) + "º " + df["curso"]
+
+turmas = sorted(df["turma"].unique())
+
+turmas_selecionadas = st.sidebar.multiselect(
+    "Selecione as turmas para comparar",
+    turmas,
+    default=turmas
 )
 
-df_filtrado = df[(df["ano"].isin(anos)) & (df["curso"].isin(cursos))]
-
-st.write("Total de estudantes analisados:", len(df_filtrado))
-
-col1, col2 = st.columns(2)
-
-with col1:
-
-    st.subheader("Esportes Preferidos")
-
-    pref = (
-        df_filtrado["ESPORTE +"]
-        .value_counts()
-        .reset_index()
-    )
-
-    pref.columns = ["esporte", "quantidade"]
-
-    fig = px.bar(
-        pref,
-        x="esporte",
-        y="quantidade",
-        title="Esportes mais preferidos"
-    )
-
-    st.plotly_chart(fig, use_container_width=True)
-
-
-with col2:
-
-    st.subheader("Esportes Menos Preferidos")
-
-    neg = (
-        df_filtrado["ESPORTE -"]
-        .value_counts()
-        .reset_index()
-    )
-
-    neg.columns = ["esporte", "quantidade"]
-
-    fig = px.bar(
-        neg,
-        x="esporte",
-        y="quantidade",
-        title="Esportes menos preferidos"
-    )
-
-    st.plotly_chart(fig, use_container_width=True)
-
-
-st.subheader("Comparação de Preferências entre Turmas")
-
-comparacao = (
-    df_filtrado
-    .groupby(["ano", "ESPORTE +"])
-    .size()
-    .reset_index(name="quantidade")
+top_x = st.sidebar.slider(
+    "Quantidade de resultados exibidos (Top X)",
+    min_value=3,
+    max_value=20,
+    value=10
 )
 
-fig = px.bar(
-    comparacao,
-    x="ESPORTE +",
-    y="quantidade",
-    color="ano",
-    barmode="group",
-    title="Preferência de esportes por ano"
+tamanho_fonte = st.sidebar.slider(
+    "Tamanho da fonte",
+    min_value=12,
+    max_value=40,
+    value=20
 )
 
-st.plotly_chart(fig, use_container_width=True)
+# ============================
+# GERAR GRÁFICOS
+# ============================
 
+if turmas_selecionadas:
 
-st.subheader("Experiências Mais Marcantes nas Aulas")
+    colunas_layout = st.columns(len(turmas_selecionadas))
 
-exp = (
-    df_filtrado["MELHOR EXPERIÊNCIA"]
-    .value_counts()
-    .reset_index()
-)
+    for i, turma in enumerate(turmas_selecionadas):
 
-exp.columns = ["experiencia", "quantidade"]
+        df_turma = df[df["turma"] == turma]
 
-fig = px.pie(
-    exp,
-    values="quantidade",
-    names="experiencia",
-    title="O que os alunos consideram a melhor experiência"
-)
+        curso = df_turma["curso"].iloc[0].lower()
 
-st.plotly_chart(fig, use_container_width=True)
+        with colunas_layout[i]:
 
+            if menu == "Esportes Preferidos":
 
-st.subheader("Palavras que Definem a Educação Física")
+                dados = (
+                    df_turma["ESPORTE +"]
+                    .value_counts()
+                    .head(top_x)
+                    .reset_index()
+                )
 
-palavras = (
-    df_filtrado["UMA PALAVRA"]
-    .value_counts()
-    .reset_index()
-)
+                dados.columns = ["Item", "Quantidade"]
 
-palavras.columns = ["palavra", "quantidade"]
+                titulo = f"{turma}"
 
-fig = px.bar(
-    palavras,
-    x="palavra",
-    y="quantidade",
-    title="Percepção dos alunos sobre a disciplina"
-)
+            elif menu == "Esportes Rejeitados":
 
-st.plotly_chart(fig, use_container_width=True)
+                dados = (
+                    df_turma["ESPORTE -"]
+                    .value_counts()
+                    .head(top_x)
+                    .reset_index()
+                )
 
+                dados.columns = ["Item", "Quantidade"]
 
-st.subheader("Tabela de Dados")
+                titulo = f"{turma}"
 
-st.dataframe(df_filtrado)
+            elif menu == "Melhor Experiência":
+
+                dados = (
+                    df_turma["MELHOR EXPERIÊNCIA"]
+                    .value_counts()
+                    .head(top_x)
+                    .reset_index()
+                )
+
+                dados.columns = ["Item", "Quantidade"]
+
+                titulo = f"{turma}"
+
+            else:
+
+                dados = (
+                    df_turma["UMA PALAVRA"]
+                    .value_counts()
+                    .head(top_x)
+                    .reset_index()
+                )
+
+                dados.columns = ["Item", "Quantidade"]
+
+                titulo = f"{turma}"
+
+            fig = px.bar(
+                dados,
+                x="Item",
+                y="Quantidade",
+                text="Quantidade",
+                title=titulo,
+                color_discrete_sequence=[cores.get(curso, "#333333")]
+            )
+
+            fig.update_traces(
+                textposition="outside"
+            )
+
+            fig.update_layout(
+                font=dict(size=tamanho_fonte),
+                height=750,
+                xaxis_title="",
+                yaxis_title="Quantidade",
+                showlegend=False
+            )
+
+            st.plotly_chart(fig, use_container_width=True)
+
+else:
+    st.info("Selecione pelo menos uma turma.")
